@@ -28,10 +28,12 @@ jobs:
           flutter create --no-pub --project-name souqna_marketplace --org com.souqna --platforms=android,web "$RUNNER_TEMP/scaffold"
           [ -d android ] || cp -r "$RUNNER_TEMP/scaffold/android" android
           [ -d web ] || cp -r "$RUNNER_TEMP/scaffold/web" web
-          # إضافة صلاحية الإنترنت
           MANIFEST=android/app/src/main/AndroidManifest.xml
           grep -q 'android.permission.INTERNET' "$MANIFEST" || \
             sed -i 's|<manifest[^>]*>|&\n    <uses-permission android:name="android.permission.INTERNET"/>|' "$MANIFEST"
+
+      - name: Clean
+        run: flutter clean
 
       - run: flutter pub get
 

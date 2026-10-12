@@ -22,14 +22,13 @@ jobs:
           channel: stable
           cache: true
 
-      # المشروع يحتوي على كود Dart فقط. نولّد مجلدات android و web في مكان مؤقت
-      # وننسخها لو ما كانت موجودة، من غير ما نمس ملفات lib أو pubspec.yaml
+      # إنشاء مجلدات المنصات إذا لم تكن موجودة
       - name: Generate platform folders
         run: |
-          flutter create --project-name souqna_marketplace --org com.souqna --platforms=android,web "$RUNNER_TEMP/scaffold"
+          flutter create --no-pub --project-name souqna_marketplace --org com.souqna --platforms=android,web "$RUNNER_TEMP/scaffold"
           [ -d android ] || cp -r "$RUNNER_TEMP/scaffold/android" android
           [ -d web ] || cp -r "$RUNNER_TEMP/scaffold/web" web
-          # صلاحية الإنترنت مطلوبة في نسخة release (الصور من الشبكة)، وflutter create يضيفها لـ debug فقط
+          # إضافة صلاحية الإنترنت
           MANIFEST=android/app/src/main/AndroidManifest.xml
           grep -q 'android.permission.INTERNET' "$MANIFEST" || \
             sed -i 's|<manifest[^>]*>|&\n    <uses-permission android:name="android.permission.INTERNET"/>|' "$MANIFEST"

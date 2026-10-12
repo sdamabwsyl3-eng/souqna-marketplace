@@ -1,0 +1,78 @@
+name: Build Souqna
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # المشروع يحتوي على كود Dart فقط. نولّد مجلدات android و web في مكان مؤقت
+      # وننسخها لو ما كانت موجودة، من غير ما نمس ملفات lib أو pubspec.yaml
+      - name: Generate platform folders
+        run: |
+          flutter create --project-name souqna_marketplace --org com.souqna --platforms=android,web "$RUNNER_TEMP/scaffold"
+          [ -d android ] || cp -r "$RUNNER_TEMP/scaffold/android" android
+          [ -d web ] || cp -r "$RUNNER_TEMP/scaffold/web" web
+          # صلاحية الإنترنت مطلوبة في نسخة release (الصور من الشبكة)، وflutter create يضيفها لـ debug فقط
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          grep -q 'android.permission.INTERNET' "$MANIFEST" || \
+            sed -i 's|<manifest[^>]*>|&\n    <uses-permission android:name="android.permission.INTERNET"/>|' "$MANIFEST"
+
+      - run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build Web
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: souqna-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: souqna-web
+          path: build/web
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: souqna-web
+          path: web
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import '../widgets/souqna_button.dart';
 import '../widgets/souqna_text_field.dart';
@@ -6,8 +7,7 @@ import 'home_screen.dart';
 
 final RegExp _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
-/// شاشة إنشاء حساب جديد بالبريد الإلكتروني وكلمة المرور.
-/// ملاحظة: الإنشاء هنا محاكاة (Mock) محليًا فقط، لحين ربط مزود مصادقة حقيقي.
+/// شاشة إنشاء حساب جديد بالبريد الإلكتروني وكلمة المرور، عبر Supabase Auth.
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
@@ -36,13 +36,37 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _loading = false);
+    try {
+      final response = await Supabase.instance.client.auth.signUp(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        data: {'full_name': _nameController.text.trim()},
+      );
+      if (!mounted) return;
 
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-      (route) => false,
+      if (response.session != null) {
+        // الدخول التلقائي مفعّل (تأكيد البريد غير مطلوب) — ندخل المستخدم مباشرة.
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      } else {
+        // تأكيد البريد مفعّل من إعدادات Supabase — نطلب منه تأكيد البريد أولاً.
+        _showMessage('تم إنشاء الحساب، تحقق من بريدك الإلكتروني لتأكيده قبل الدخول');
+        Navigator.of(context).pop();
+      }
+    } on AuthException catch (e) {
+      _showMessage(e.message);
+    } catch (_) {
+      _showMessage('تعذّر الاتصال، تحقق من الإنترنت وحاول مرة أخرى');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 

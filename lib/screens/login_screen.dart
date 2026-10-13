@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import '../widgets/souqna_button.dart';
 import '../widgets/souqna_text_field.dart';
@@ -7,8 +8,7 @@ import 'signup_screen.dart';
 
 final RegExp _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
-/// شاشة تسجيل الدخول بالبريد الإلكتروني وكلمة المرور.
-/// ملاحظة: التحقق هنا محاكاة (Mock) محليًا فقط، لحين ربط مزود مصادقة حقيقي.
+/// شاشة تسجيل الدخول بالبريد الإلكتروني وكلمة المرور، عبر Supabase Auth.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -33,12 +33,27 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
-    if (!mounted) return;
-    setState(() => _loading = false);
+    try {
+      await Supabase.instance.client.auth.signInWithPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+      );
+    } on AuthException catch (e) {
+      _showError(e.message);
+    } catch (_) {
+      _showError('تعذّر الاتصال، تحقق من الإنترنت وحاول مرة أخرى');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 

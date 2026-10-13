@@ -20,7 +20,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          cache: true
+          cache: false
 
       # إنشاء مجلدات المنصات إذا لم تكن موجودة
       - name: Generate platform folders

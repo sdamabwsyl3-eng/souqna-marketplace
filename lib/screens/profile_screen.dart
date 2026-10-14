@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 import 'bank_accounts_screen.dart';
+import 'login_screen.dart';
 import 'wallet_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -13,6 +15,34 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _pushNotifications = true;
   bool _escrowUpdates = true;
+
+  /// اسم وبريد المستخدم الحقيقي من Supabase Auth.
+  /// باقي الأرقام (التقييم، المحفظة، الضمان) لسا بيانات تجريبية لحين ربط قاعدة البيانات.
+  String get _displayName {
+    final user = Supabase.instance.client.auth.currentUser;
+    final fullName = (user?.userMetadata?['full_name'] as String?)?.trim();
+    if (fullName != null && fullName.isNotEmpty) return fullName;
+    return user?.email?.split('@').first ?? 'مستخدم سوقنا';
+  }
+
+  String get _email => Supabase.instance.client.auth.currentUser?.email ?? '';
+
+  String get _initials {
+    final parts = _displayName.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return 'س';
+    final first = parts.first.substring(0, 1);
+    final second = parts.length > 1 && parts.last.isNotEmpty ? parts.last.substring(0, 1) : '';
+    return '$first$second';
+  }
+
+  Future<void> _logout() async {
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,30 +72,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Row(
                       children: [
-                        const CircleAvatar(
+                        CircleAvatar(
                           radius: 28,
                           backgroundColor: Colors.white,
-                          child: Text('ع.م', style: TextStyle(color: SouqnaColors.primary, fontWeight: FontWeight.bold, fontSize: 18)),
+                          child: Text(_initials, style: const TextStyle(color: SouqnaColors.primary, fontWeight: FontWeight.bold, fontSize: 18)),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Row(
+                              Row(
                                 children: [
-                                  Text('عبدالله محمد السالم', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                                  SizedBox(width: 6),
-                                  Icon(Icons.verified, color: SouqnaColors.success, size: 18),
+                                  Flexible(
+                                    child: Text(_displayName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.verified, color: SouqnaColors.success, size: 18),
                                 ],
                               ),
                               const SizedBox(height: 3),
-                              const Text('هوية: 10****4582 • الرياض', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                              Text(_email, style: const TextStyle(color: Colors.white70, fontSize: 11), textDirection: TextDirection.ltr),
                               const SizedBox(height: 6),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(color: SouqnaColors.success.withAlpha(51), borderRadius: BorderRadius.circular(6)),
-                                child: const Text('موثق بهوية وطنية عبر نفاذ', style: TextStyle(color: SouqnaColors.successBorder, fontSize: 10, fontWeight: FontWeight.bold)),
+                                child: const Text('حساب موثّق', style: TextStyle(color: SouqnaColors.successBorder, fontSize: 10, fontWeight: FontWeight.bold)),
                               ),
                             ],
                           ),
@@ -125,6 +157,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _tile(Icons.account_balance_wallet_outlined, 'المحفظة وسجل العمليات', 'كشف الحساب والتحويل السريع', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WalletScreen()))),
                     _tile(Icons.credit_card_rounded, 'الحسابات البنكية والآيبان', 'إدارة حسابات السحب بنظام سريع', () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BankAccountsScreen()))),
                     _tile(Icons.shield_outlined, 'مركز النزاعات وحماية المشتري', 'حل الخلافات وحماية المعاملات', () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('قريباً')))),
+                    const Divider(height: 1),
+                    _tile(Icons.logout_rounded, 'تسجيل الخروج', 'الخروج من حسابك على هذا الجهاز', _logout),
                   ],
                 ),
               ),

@@ -110,9 +110,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         _stat('التقييم العام', '4.9 ⭐', '42 صفقة'),
                         Container(height: 22, width: 1, color: Colors.white24),
-                        _stat('الرصيد المتاح', '14,850 ر.س', 'المحفظة'),
+                        _stat('الرصيد المتاح', '14,850 ج.س', 'المحفظة'),
                         Container(height: 22, width: 1, color: Colors.white24),
-                        _stat('في الضمان', '3,850 ر.س', 'Escrow'),
+                        _stat('في الضمان', '3,850 ج.س', 'Escrow'),
                       ],
                     ),
                   ],

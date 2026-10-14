@@ -199,7 +199,7 @@ class _ProductCard extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('${product.price.toStringAsFixed(0)} ر.س',
+                      Text('${product.price.toStringAsFixed(0)} ج.س',
                           style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: SouqnaColors.primary)),
                       if (product.hasEscrow)
                         Container(

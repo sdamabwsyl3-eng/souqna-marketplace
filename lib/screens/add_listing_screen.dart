@@ -17,7 +17,7 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
   String _category = 'أجهزة وإلكترونيات';
   String _condition = 'كالجديد';
-  String _city = 'الرياض';
+  String _city = 'الخرطوم';
   bool _isNegotiable = true;
   bool _enableEscrow = true;
   bool _requestInspection = false;
@@ -173,7 +173,7 @@ class _AddListingScreenState extends State<AddListingScreen> {
                         controller: _priceController,
                         keyboardType: TextInputType.number,
                         style: const TextStyle(fontWeight: FontWeight.w900, color: SouqnaColors.primary, fontSize: 16),
-                        decoration: _inputDec(hint: '0.00', prefix: 'ر.س  '),
+                        decoration: _inputDec(hint: '0.00', prefix: 'ج.س  '),
                         validator: (v) {
           final n = double.tryParse((v ?? '').trim());
           return (n == null || n <= 0) ? 'أدخل سعراً صحيحاً أكبر من صفر' : null;

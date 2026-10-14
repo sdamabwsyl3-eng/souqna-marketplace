@@ -19,7 +19,7 @@ class NewListingModel {
     this.price = 0.0,
     this.isNegotiable = true,
     this.condition = 'كالجديد',
-    this.city = 'الرياض',
+    this.city = 'الخرطوم',
     this.district = '',
     this.imagePaths = const [],
     this.enableEscrow = true,

@@ -13,16 +13,17 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  String _method = 'mada';
+  String _method = 'bank_transfer';
 
   // رسوم الضمان تجريبية (1%) وللعرض فقط
   double get _escrowFee => widget.product.price * 0.01;
   double get _total => widget.product.price + _escrowFee;
 
   static const _methods = {
-    'mada': ['مدى', Icons.credit_card_rounded],
-    'apple': ['Apple Pay', Icons.apple_rounded],
-    'sadad': ['سداد', Icons.receipt_long_rounded],
+    'bank_transfer': ['تحويل بنكي (بنك الخرطوم / فيصل)', Icons.account_balance_rounded],
+    'bankak': ['بنكك (Bankak)', Icons.smartphone_rounded],
+    'mashreq_ocash': ['مشرق أوكاش', Icons.account_balance_wallet_rounded],
+    'cash_on_delivery': ['الدفع عند الاستلام (كاش)', Icons.payments_rounded],
   };
 
   void _confirm() {
@@ -39,7 +40,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             Text('تم حجز المبلغ في الضمان', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
           ]),
           content: Text(
-            'سيبقى مبلغ ${_total.toStringAsFixed(2)} ر.س معلّقاً حتى تستلم السلعة وتؤكد سلامتها.',
+            'سيبقى مبلغ ${_total.toStringAsFixed(2)} ج.س معلّقاً حتى تستلم السلعة وتؤكد سلامتها.',
             style: const TextStyle(fontSize: 13, height: 1.5),
           ),
           actions: [
@@ -129,10 +130,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: SouqnaColors.border)),
               child: Column(
                 children: [
-                  _row('سعر السلعة', '${p.price.toStringAsFixed(2)} ر.س'),
-                  _row('رسوم الضمان البنكي', '${_escrowFee.toStringAsFixed(2)} ر.س'),
+                  _row('سعر السلعة', '${p.price.toStringAsFixed(2)} ج.س'),
+                  _row('رسوم الضمان البنكي', '${_escrowFee.toStringAsFixed(2)} ج.س'),
                   const Divider(),
-                  _row('الإجمالي', '${_total.toStringAsFixed(2)} ر.س', bold: true),
+                  _row('الإجمالي', '${_total.toStringAsFixed(2)} ج.س', bold: true),
                 ],
               ),
             ),
@@ -154,7 +155,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            SouqnaButton(title: 'تأكيد ودفع ${_total.toStringAsFixed(0)} ر.س', icon: Icons.lock_rounded, onPressed: _confirm),
+            SouqnaButton(title: 'تأكيد ودفع ${_total.toStringAsFixed(0)} ج.س', icon: Icons.lock_rounded, onPressed: _confirm),
           ],
         ),
       ),

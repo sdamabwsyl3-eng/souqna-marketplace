@@ -67,7 +67,7 @@ class _ChatNegotiationScreenState extends State<ChatNegotiationScreen> {
 
   void _offer(double pct) {
     final price = (widget.product.price * pct).round();
-    _send('عرض سعر: $price ر.س', isOffer: true);
+    _send('عرض سعر: $price ج.س', isOffer: true);
   }
 
   @override
@@ -150,7 +150,7 @@ class _ChatNegotiationScreenState extends State<ChatNegotiationScreen> {
                             Padding(
                               padding: const EdgeInsetsDirectional.only(end: 8),
                               child: ActionChip(
-                                label: Text('عرض ${(p.price * pct).round()} ر.س', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                label: Text('عرض ${(p.price * pct).round()} ج.س', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                 backgroundColor: SouqnaColors.surfaceLow,
                                 onPressed: () => _offer(pct),
                               ),

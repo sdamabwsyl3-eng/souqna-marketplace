@@ -15,7 +15,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     {
       'id': '1',
       'title': 'حساب الضمان البنكي (Escrow)',
-      'body': 'تم حجز مبلغ 3,850 ر.س لطلب شراء آيفون 15 برو ماكس. أموالك في أمان حتى الفحص.',
+      'body': 'تم حجز مبلغ 3,850 ج.س لطلب شراء آيفون 15 برو ماكس. أموالك في أمان حتى الفحص.',
       'cat': 'escrow',
       'time': 'منذ 10 دقائق',
       'isRead': false,
@@ -24,7 +24,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     {
       'id': '2',
       'title': 'عرض سعر جديد من البائع',
-      'body': 'وافق البائع عبدالله محمد على عرض السعر (3,650 ر.س). يمكنك إتمام الشراء الآن.',
+      'body': 'وافق البائع عبدالله محمد على عرض السعر (3,650 ج.س). يمكنك إتمام الشراء الآن.',
       'cat': 'chat',
       'time': 'منذ 45 دقيقة',
       'isRead': false,

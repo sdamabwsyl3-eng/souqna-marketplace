@@ -49,7 +49,7 @@ class ProductDetailsScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Text(product.title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
                   const SizedBox(height: 6),
-                  Text('${product.price.toStringAsFixed(0)} ر.س',
+                  Text('${product.price.toStringAsFixed(0)} ج.س',
                       style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: SouqnaColors.primary)),
                   const SizedBox(height: 6),
                   Row(

@@ -66,7 +66,7 @@ class WalletScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${fmt.format(user.walletBalance)} ر.س',
+                    '${fmt.format(user.walletBalance)} ج.س',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 28,
@@ -97,7 +97,7 @@ class WalletScreen extends StatelessWidget {
                         ),
                         const Spacer(),
                         Text(
-                          '${fmt.format(user.escrowBalance)} ر.س',
+                          '${fmt.format(user.escrowBalance)} ج.س',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../data/sudan_states.dart';
 import '../theme/app_colors.dart';
 
 class AddListingScreen extends StatefulWidget {
@@ -158,6 +159,31 @@ class _AddListingScreenState extends State<AddListingScreen> {
                         controller: _descController,
                         maxLines: 3,
                         decoration: _inputDec(hint: 'اكتب وصفاً مفصلاً لحالة السلعة ومرفقاتها...'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // 2.5 الموقع (الولاية والمنطقة)
+                _card(
+                  title: 'الموقع',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        value: _city,
+                        decoration: _inputDec(hint: 'الولاية'),
+                        items: SudanStates.all
+                            .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13))))
+                            .toList(),
+                        onChanged: (v) => setState(() => _city = v!),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _districtController,
+                        decoration: _inputDec(hint: 'الحي / المنطقة (مثال: حي العمارات)'),
+                        validator: (v) => (v ?? '').trim().isEmpty ? 'يرجى كتابة الحي أو المنطقة' : null,
                       ),
                     ],
                   ),

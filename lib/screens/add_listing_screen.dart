@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../data/sudan_states.dart';
+import '../services/supabase_data_service.dart';
 import '../theme/app_colors.dart';
 
 class AddListingScreen extends StatefulWidget {
@@ -22,6 +23,7 @@ class _AddListingScreenState extends State<AddListingScreen> {
   bool _isNegotiable = true;
   bool _enableEscrow = true;
   bool _requestInspection = false;
+  bool _publishing = false;
 
   final List<String> _images = [
     'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=400&auto=format&fit=crop',
@@ -35,6 +37,34 @@ class _AddListingScreenState extends State<AddListingScreen> {
     _descController.dispose();
     _districtController.dispose();
     super.dispose();
+  }
+
+  Future<void> _publish() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _publishing = true);
+    try {
+      await SupabaseDataService.createProduct(
+        title: _titleController.text.trim(),
+        description: _descController.text.trim(),
+        category: _category,
+        price: double.parse(_priceController.text.trim()),
+        isNegotiable: _isNegotiable,
+        condition: _condition,
+        city: _city,
+        district: _districtController.text.trim(),
+        images: _images,
+        hasEscrow: _enableEscrow,
+        isInspected: false,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر السلعة بنجاح بضمان سوقنا!')));
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذّر نشر السلعة: ${e.toString()}')));
+    } finally {
+      if (mounted) setState(() => _publishing = false);
+    }
   }
 
   @override
@@ -275,12 +305,14 @@ class _AddListingScreenState extends State<AddListingScreen> {
                     minimumSize: const Size(double.infinity, 52),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم نشر السلعة بنجاح بضمان سوقنا!')));
-                    }
-                  },
-                  child: const Text('نشر السلعة في سوقنا الآن', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  onPressed: _publishing ? null : _publish,
+                  child: _publishing
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                        )
+                      : const Text('نشر السلعة في سوقنا الآن', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
                 ),
               ],
             ),

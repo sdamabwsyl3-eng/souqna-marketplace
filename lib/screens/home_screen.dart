@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../data/mock_data.dart';
 import '../models/product_model.dart';
+import '../services/supabase_data_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/trust_badge.dart';
 import 'add_listing_screen.dart';
@@ -70,8 +70,21 @@ class _ExploreTabState extends State<_ExploreTab> {
   final _searchController = TextEditingController();
   String _query = '';
   String _category = 'الكل';
+  late Future<List<Product>> _productsFuture;
 
   static const _categories = ['الكل', 'أجهزة وإلكترونيات', 'سيارات ومركبات', 'عقارات', 'ساعات ومقتنيات'];
+
+  @override
+  void initState() {
+    super.initState();
+    _productsFuture = SupabaseDataService.fetchProducts();
+  }
+
+  Future<void> _refresh() async {
+    final future = SupabaseDataService.fetchProducts();
+    setState(() => _productsFuture = future);
+    await future;
+  }
 
   @override
   void dispose() {
@@ -81,12 +94,6 @@ class _ExploreTabState extends State<_ExploreTab> {
 
   @override
   Widget build(BuildContext context) {
-    final List<Product> items = MockData.products
-        .where((p) =>
-            p.title.toLowerCase().contains(_query.trim().toLowerCase()) &&
-            (_category == 'الكل' || p.category == _category))
-        .toList();
-
     return Scaffold(
       appBar: AppBar(title: const Text('سوقنا')),
       body: Column(
@@ -132,14 +139,41 @@ class _ExploreTabState extends State<_ExploreTab> {
           ),
           const Divider(height: 1, color: SouqnaColors.border),
           Expanded(
-            child: items.isEmpty
-                ? const Center(child: Text('لا توجد نتائج', style: TextStyle(color: SouqnaColors.textMuted)))
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 14),
-                    itemBuilder: (ctx, i) => _ProductCard(product: items[i]),
-                  ),
+            child: FutureBuilder<List<Product>>(
+              future: _productsFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('تعذّر تحميل السلع، تحقق من الإنترنت', style: const TextStyle(color: SouqnaColors.textMuted)),
+                  );
+                }
+                final items = (snapshot.data ?? const [])
+                    .where((p) =>
+                        p.title.toLowerCase().contains(_query.trim().toLowerCase()) &&
+                        (_category == 'الكل' || p.category == _category))
+                    .toList();
+
+                return RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: items.isEmpty
+                      ? ListView(
+                          children: const [
+                            SizedBox(height: 120),
+                            Center(child: Text('لا توجد سلع بعد', style: TextStyle(color: SouqnaColors.textMuted))),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+                          itemCount: items.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 14),
+                          itemBuilder: (ctx, i) => _ProductCard(product: items[i]),
+                        ),
+                );
+              },
+            ),
           ),
         ],
       ),

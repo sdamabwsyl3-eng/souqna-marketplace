@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/user_profile_model.dart';
+import '../services/supabase_data_service.dart';
 import '../theme/app_colors.dart';
 import 'bank_accounts_screen.dart';
 import 'login_screen.dart';
@@ -15,9 +17,15 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _pushNotifications = true;
   bool _escrowUpdates = true;
+  late Future<UserProfile?> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = SupabaseDataService.fetchMyProfile();
+  }
 
   /// اسم وبريد المستخدم الحقيقي من Supabase Auth.
-  /// باقي الأرقام (التقييم، المحفظة، الضمان) لسا بيانات تجريبية لحين ربط قاعدة البيانات.
   String get _displayName {
     final user = Supabase.instance.client.auth.currentUser;
     final fullName = (user?.userMetadata?['full_name'] as String?)?.trim();
@@ -105,15 +113,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     const Divider(color: Colors.white24, height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _stat('التقييم العام', '4.9 ⭐', '42 صفقة'),
-                        Container(height: 22, width: 1, color: Colors.white24),
-                        _stat('الرصيد المتاح', '14,850 ج.س', 'المحفظة'),
-                        Container(height: 22, width: 1, color: Colors.white24),
-                        _stat('في الضمان', '3,850 ج.س', 'Escrow'),
-                      ],
+                    FutureBuilder<UserProfile?>(
+                      future: _profileFuture,
+                      builder: (context, snapshot) {
+                        final p = snapshot.data;
+                        final loading = snapshot.connectionState == ConnectionState.waiting;
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _stat('التقييم العام', loading ? '...' : '${(p?.rating ?? 5.0).toStringAsFixed(1)} ⭐',
+                                loading ? '' : '${p?.successfulDealsCount ?? 0} صفقة'),
+                            Container(height: 22, width: 1, color: Colors.white24),
+                            _stat('الرصيد المتاح', loading ? '...' : '${(p?.walletBalance ?? 0).toStringAsFixed(0)} ج.س', 'المحفظة'),
+                            Container(height: 22, width: 1, color: Colors.white24),
+                            _stat('في الضمان', loading ? '...' : '${(p?.escrowBalance ?? 0).toStringAsFixed(0)} ج.س', 'Escrow'),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),

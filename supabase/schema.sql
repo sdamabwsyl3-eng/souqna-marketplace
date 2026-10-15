@@ -1,5 +1,5 @@
 -- سوقنا: جداول قاعدة البيانات الحقيقية + سياسات أمان الصفوف (RLS)
--- شغّل هذا الملف كامل مرة واحدة من: Supabase Dashboard -> SQL Editor -> New query -> Run
+-- آمن للتشغيل أكثر من مرة (idempotent) — شغّله كامل من: Supabase Dashboard -> SQL Editor -> New query -> Run
 
 -- 1) جدول الملف الشخصي (مرتبط تلقائياً بكل مستخدم يسجّل حساب)
 create table if not exists public.profiles (
@@ -14,10 +14,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "profiles are publicly readable" on public.profiles;
 create policy "profiles are publicly readable"
   on public.profiles for select
   using (true);
 
+drop policy if exists "users can update their own profile" on public.profiles;
 create policy "users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
@@ -61,18 +63,22 @@ create table if not exists public.products (
 
 alter table public.products enable row level security;
 
+drop policy if exists "products are publicly readable" on public.products;
 create policy "products are publicly readable"
   on public.products for select
   using (true);
 
+drop policy if exists "sellers can insert their own products" on public.products;
 create policy "sellers can insert their own products"
   on public.products for insert
   with check (auth.uid() = seller_id);
 
+drop policy if exists "sellers can update their own products" on public.products;
 create policy "sellers can update their own products"
   on public.products for update
   using (auth.uid() = seller_id);
 
+drop policy if exists "sellers can delete their own products" on public.products;
 create policy "sellers can delete their own products"
   on public.products for delete
   using (auth.uid() = seller_id);
@@ -91,10 +97,12 @@ create table if not exists public.wallet_transactions (
 
 alter table public.wallet_transactions enable row level security;
 
+drop policy if exists "users can read their own transactions" on public.wallet_transactions;
 create policy "users can read their own transactions"
   on public.wallet_transactions for select
   using (auth.uid() = user_id);
 
+drop policy if exists "users can insert their own transactions" on public.wallet_transactions;
 create policy "users can insert their own transactions"
   on public.wallet_transactions for insert
   with check (auth.uid() = user_id);

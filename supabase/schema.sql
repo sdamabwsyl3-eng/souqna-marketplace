@@ -106,3 +106,159 @@ drop policy if exists "users can insert their own transactions" on public.wallet
 create policy "users can insert their own transactions"
   on public.wallet_transactions for insert
   with check (auth.uid() = user_id);
+
+-- يحدّث رصيد المحفظة/الضمان في profiles تلقائياً كل ما تُدرج عملية محفظة جديدة
+create or replace function public.apply_wallet_transaction()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  if new.type = 'deposit' then
+    update public.profiles set wallet_balance = wallet_balance + new.amount where id = new.user_id;
+  elsif new.type = 'withdrawal' then
+    update public.profiles set wallet_balance = wallet_balance - new.amount where id = new.user_id;
+  elsif new.type = 'escrow_hold' then
+    update public.profiles set escrow_balance = escrow_balance + new.amount where id = new.user_id;
+  elsif new.type = 'escrow_released' then
+    update public.profiles set escrow_balance = escrow_balance - new.amount where id = new.user_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_wallet_transaction_insert on public.wallet_transactions;
+create trigger on_wallet_transaction_insert
+  after insert on public.wallet_transactions
+  for each row execute procedure public.apply_wallet_transaction();
+
+-- 4) جدول الحسابات البنكية الخاصة بالمستخدم (للسحب)
+create table if not exists public.bank_accounts (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  bank_name text not null,
+  account_number text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.bank_accounts enable row level security;
+
+drop policy if exists "users can read their own bank accounts" on public.bank_accounts;
+create policy "users can read their own bank accounts"
+  on public.bank_accounts for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "users can insert their own bank accounts" on public.bank_accounts;
+create policy "users can insert their own bank accounts"
+  on public.bank_accounts for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "users can delete their own bank accounts" on public.bank_accounts;
+create policy "users can delete their own bank accounts"
+  on public.bank_accounts for delete
+  using (auth.uid() = user_id);
+
+-- 5) جدول الطلبات (الشراء بضمان سوقنا)
+create table if not exists public.orders (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products (id) on delete cascade,
+  buyer_id uuid not null references public.profiles (id) on delete cascade,
+  seller_id uuid not null references public.profiles (id) on delete cascade,
+  price numeric(12, 2) not null,
+  escrow_fee numeric(12, 2) not null,
+  total numeric(12, 2) not null,
+  payment_method text not null,
+  status text not null default 'escrow_held', -- escrow_held | in_progress | completed
+  step int not null default 0, -- 0..4 يطابق مراحل تتبع الطلب بالتطبيق
+  created_at timestamptz not null default now()
+);
+
+alter table public.orders enable row level security;
+
+drop policy if exists "buyers and sellers can read their orders" on public.orders;
+create policy "buyers and sellers can read their orders"
+  on public.orders for select
+  using (auth.uid() = buyer_id or auth.uid() = seller_id);
+
+-- لا إدراج/تعديل مباشر من العميل على orders أو wallet_transactions الخاصة بطرف آخر؛
+-- كل ذلك يمر عبر الدالتين الآمنتين أدناه (security definer).
+
+-- إنشاء طلب شراء بضمان: يحجز المبلغ في ضمان المشتري ويقفل السلعة عن العرض
+create or replace function public.create_order(p_product_id uuid, p_payment_method text)
+returns uuid
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_product public.products%rowtype;
+  v_order_id uuid;
+  v_fee numeric(12, 2);
+  v_total numeric(12, 2);
+begin
+  select * into v_product from public.products where id = p_product_id;
+  if not found then
+    raise exception 'السلعة غير موجودة';
+  end if;
+  if v_product.status <> 'active' then
+    raise exception 'السلعة لم تعد متاحة';
+  end if;
+
+  v_fee := round(v_product.price * 0.01, 2);
+  v_total := v_product.price + v_fee;
+
+  insert into public.orders (product_id, buyer_id, seller_id, price, escrow_fee, total, payment_method)
+  values (p_product_id, auth.uid(), v_product.seller_id, v_product.price, v_fee, v_total, p_payment_method)
+  returning id into v_order_id;
+
+  insert into public.wallet_transactions (user_id, title, amount, type, reference_number, status)
+  values (auth.uid(), 'حجز مبلغ في الضمان - ' || v_product.title, v_total, 'escrow_hold',
+          'SQ-' || upper(substr(v_order_id::text, 1, 8)), 'معلّق');
+
+  update public.products set status = 'sold' where id = p_product_id;
+
+  return v_order_id;
+end;
+$$;
+
+-- التقدّم بمراحل الطلب؛ عند الوصول للمرحلة الأخيرة يُحرَّر المبلغ من ضمان المشتري لمحفظة البائع
+create or replace function public.advance_order(p_order_id uuid)
+returns void
+language plpgsql
+security definer set search_path = public
+as $$
+declare
+  v_order public.orders%rowtype;
+  v_title text;
+begin
+  select * into v_order from public.orders where id = p_order_id;
+  if not found then
+    raise exception 'الطلب غير موجود';
+  end if;
+  if v_order.buyer_id <> auth.uid() then
+    raise exception 'غير مصرح لك بتحديث هذا الطلب';
+  end if;
+  if v_order.step >= 4 then
+    return;
+  end if;
+
+  select title into v_title from public.products where id = v_order.product_id;
+
+  update public.orders
+    set step = step + 1,
+        status = case when step + 1 >= 4 then 'completed' else 'in_progress' end
+    where id = p_order_id;
+
+  if v_order.step + 1 >= 4 then
+    insert into public.wallet_transactions (user_id, title, amount, type, reference_number, status)
+    values (v_order.buyer_id, 'تحرير مبلغ من الضمان - ' || coalesce(v_title, ''), v_order.total, 'escrow_released',
+            'SQ-' || upper(substr(p_order_id::text, 1, 8)), 'مكتمل');
+
+    insert into public.wallet_transactions (user_id, title, amount, type, reference_number, status)
+    values (v_order.seller_id, 'استلام ثمن البيع - ' || coalesce(v_title, ''), v_order.price, 'deposit',
+            'SQ-' || upper(substr(p_order_id::text, 1, 8)), 'مكتمل');
+  end if;
+end;
+$$;
+
+grant execute on function public.create_order(uuid, text) to authenticated;
+grant execute on function public.advance_order(uuid) to authenticated;

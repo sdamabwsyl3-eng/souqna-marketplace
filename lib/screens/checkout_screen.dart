@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
+import '../services/supabase_data_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/souqna_button.dart';
 import 'order_tracking_screen.dart';
@@ -14,8 +15,9 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   String _method = 'bank_transfer';
+  bool _confirming = false;
 
-  // رسوم الضمان تجريبية (1%) وللعرض فقط
+  // رسوم الضمان (1%) — نفس النسبة المحسوبة في قاعدة البيانات عند إنشاء الطلب
   double get _escrowFee => widget.product.price * 0.01;
   double get _total => widget.product.price + _escrowFee;
 
@@ -26,7 +28,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     'cash_on_delivery': ['الدفع عند الاستلام (كاش)', Icons.payments_rounded],
   };
 
-  void _confirm() {
+  Future<void> _confirm() async {
+    setState(() => _confirming = true);
+    String orderId;
+    try {
+      orderId = await SupabaseDataService.createOrder(
+        productId: widget.product.id,
+        paymentMethod: _method,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _confirming = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذّر إتمام الطلب: ${e.toString()}')));
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _confirming = false);
+
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -48,7 +66,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               onPressed: () {
                 Navigator.of(ctx).pop();
                 Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => OrderTrackingScreen(product: widget.product)),
+                  MaterialPageRoute(builder: (_) => OrderTrackingScreen(product: widget.product, orderId: orderId)),
                 );
               },
               child: const Text('تتبع الطلب', style: TextStyle(fontWeight: FontWeight.bold, color: SouqnaColors.accent)),
@@ -155,7 +173,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            SouqnaButton(title: 'تأكيد ودفع ${_total.toStringAsFixed(0)} ج.س', icon: Icons.lock_rounded, onPressed: _confirm),
+            SouqnaButton(
+              title: _confirming ? 'جارِ التأكيد...' : 'تأكيد ودفع ${_total.toStringAsFixed(0)} ج.س',
+              icon: Icons.lock_rounded,
+              onPressed: _confirming ? null : _confirm,
+            ),
           ],
         ),
       ),

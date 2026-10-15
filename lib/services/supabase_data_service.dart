@@ -75,4 +75,60 @@ class SupabaseDataService {
         .map((r) => WalletTransaction.fromJson(r as Map<String, dynamic>))
         .toList();
   }
+
+  /// ينشئ طلب شراء بضمان سوقنا: يحجز المبلغ في ضمان المشتري، يقفل السلعة
+  /// عن العرض، ويرجّع معرّف الطلب الجديد. (دالة قاعدة بيانات آمنة create_order)
+  static Future<String> createOrder({
+    required String productId,
+    required String paymentMethod,
+  }) async {
+    final res = await _client.rpc('create_order', params: {
+      'p_product_id': productId,
+      'p_payment_method': paymentMethod,
+    });
+    return res as String;
+  }
+
+  /// يجلب تفاصيل طلب واحد (لصفحة تتبع الطلب).
+  static Future<Map<String, dynamic>> fetchOrder(String orderId) async {
+    final row = await _client.from('orders').select().eq('id', orderId).single();
+    return row;
+  }
+
+  /// يتقدّم بالطلب لمرحلة تالية؛ عند آخر مرحلة يحرّر المبلغ لمحفظة البائع.
+  /// (دالة قاعدة بيانات آمنة advance_order)
+  static Future<void> advanceOrder(String orderId) async {
+    await _client.rpc('advance_order', params: {'p_order_id': orderId});
+  }
+
+  /// يجلب الحسابات البنكية المسجّلة للمستخدم الحالي.
+  static Future<List<Map<String, dynamic>>> fetchMyBankAccounts() async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return [];
+    final rows = await _client
+        .from('bank_accounts')
+        .select()
+        .eq('user_id', uid)
+        .order('created_at', ascending: false);
+    return (rows as List<dynamic>).cast<Map<String, dynamic>>();
+  }
+
+  /// يضيف حساباً بنكياً جديداً للمستخدم الحالي.
+  static Future<void> addBankAccount({
+    required String bankName,
+    required String accountNumber,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) throw Exception('يجب تسجيل الدخول أولاً');
+    await _client.from('bank_accounts').insert({
+      'user_id': uid,
+      'bank_name': bankName,
+      'account_number': accountNumber,
+    });
+  }
+
+  /// يحذف حساباً بنكياً.
+  static Future<void> deleteBankAccount(String id) async {
+    await _client.from('bank_accounts').delete().eq('id', id);
+  }
 }

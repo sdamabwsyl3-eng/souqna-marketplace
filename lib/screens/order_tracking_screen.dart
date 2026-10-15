@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/product_model.dart';
+import '../services/supabase_data_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/souqna_button.dart';
 
 class OrderTrackingScreen extends StatefulWidget {
   final Product product;
-  const OrderTrackingScreen({super.key, required this.product});
+  final String orderId;
+  const OrderTrackingScreen({super.key, required this.product, required this.orderId});
 
   @override
   State<OrderTrackingScreen> createState() => _OrderTrackingScreenState();
@@ -20,9 +22,50 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
   ];
 
   int _current = 0;
+  bool _loading = true;
+  bool _advancing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrder();
+  }
+
+  Future<void> _loadOrder() async {
+    try {
+      final order = await SupabaseDataService.fetchOrder(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _current = order['step'] as int? ?? 0;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _advance() async {
+    setState(() => _advancing = true);
+    try {
+      await SupabaseDataService.advanceOrder(widget.orderId);
+      await _loadOrder();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذّر تحديث الطلب: ${e.toString()}')));
+    } finally {
+      if (mounted) setState(() => _advancing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(body: Center(child: CircularProgressIndicator())),
+      );
+    }
     final done = _current >= _steps.length;
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -78,9 +121,9 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
               ),
               if (!done)
                 SouqnaButton(
-                  title: 'تقدّم للمرحلة التالية (تجريبي)',
+                  title: _advancing ? 'جارِ التحديث...' : 'تقدّم للمرحلة التالية (تجريبي)',
                   variant: SouqnaButtonVariant.primary,
-                  onPressed: () => setState(() => _current++),
+                  onPressed: _advancing ? null : _advance,
                 )
               else
                 const Center(

@@ -13,6 +13,7 @@ class Product {
   final String sellerName;
   final double sellerRating;
   final int sellerDealsCount;
+  final DateTime createdAt;
 
   Product({
     required this.id,
@@ -29,6 +30,7 @@ class Product {
     required this.sellerName,
     required this.sellerRating,
     required this.sellerDealsCount,
+    required this.createdAt,
   });
 
   /// يبني Product من صف جدول products في Supabase، بعد عمل join بسيط مع
@@ -56,6 +58,16 @@ class Product {
       sellerName: (name != null && name.isNotEmpty) ? name : 'بائع سوقنا',
       sellerRating: (seller?['rating'] as num?)?.toDouble() ?? 5.0,
       sellerDealsCount: seller?['successful_deals_count'] as int? ?? 0,
+      createdAt: DateTime.parse(j['created_at'] as String).toLocal(),
     );
+  }
+
+  /// نص تاريخ نسبي قصير لعرضه على بطاقة السلعة (مثل "اليوم"، "قبل 3 أيام").
+  String get postedAgoLabel {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inMinutes < 60) return diff.inMinutes <= 1 ? 'الآن' : 'قبل ${diff.inMinutes} دقيقة';
+    if (diff.inHours < 24) return 'قبل ${diff.inHours} ساعة';
+    if (diff.inDays < 7) return diff.inDays == 1 ? 'أمس' : 'قبل ${diff.inDays} أيام';
+    return '${createdAt.year}/${createdAt.month.toString().padLeft(2, '0')}/${createdAt.day.toString().padLeft(2, '0')}';
   }
 }

@@ -262,3 +262,95 @@ $$;
 
 grant execute on function public.create_order(uuid, text) to authenticated;
 grant execute on function public.advance_order(uuid) to authenticated;
+
+-- 6) السلع المفضّلة لدى المستخدم (قائمة "المفضلة" في الشريط السفلي)
+create table if not exists public.favorites (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  product_id uuid not null references public.products (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (user_id, product_id)
+);
+
+alter table public.favorites enable row level security;
+
+drop policy if exists "users manage their own favorites" on public.favorites;
+create policy "users manage their own favorites"
+  on public.favorites for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+-- 7) محادثات التفاوض على السلع (تبويب "المحادثات")، ورسائلها
+create table if not exists public.conversations (
+  id uuid primary key default gen_random_uuid(),
+  product_id uuid not null references public.products (id) on delete cascade,
+  buyer_id uuid not null references public.profiles (id) on delete cascade,
+  seller_id uuid not null references public.profiles (id) on delete cascade,
+  last_message text not null default '',
+  last_message_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  unique (product_id, buyer_id)
+);
+
+alter table public.conversations enable row level security;
+
+drop policy if exists "participants can view their conversations" on public.conversations;
+create policy "participants can view their conversations"
+  on public.conversations for select
+  using (auth.uid() = buyer_id or auth.uid() = seller_id);
+
+drop policy if exists "buyers can start a conversation" on public.conversations;
+create policy "buyers can start a conversation"
+  on public.conversations for insert
+  with check (auth.uid() = buyer_id and auth.uid() <> seller_id);
+
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  sender_id uuid not null references public.profiles (id) on delete cascade,
+  text text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.messages enable row level security;
+
+drop policy if exists "participants can view conversation messages" on public.messages;
+create policy "participants can view conversation messages"
+  on public.messages for select
+  using (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and (c.buyer_id = auth.uid() or c.seller_id = auth.uid())
+    )
+  );
+
+drop policy if exists "participants can send conversation messages" on public.messages;
+create policy "participants can send conversation messages"
+  on public.messages for insert
+  with check (
+    auth.uid() = sender_id
+    and exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and (c.buyer_id = auth.uid() or c.seller_id = auth.uid())
+    )
+  );
+
+-- عند إرسال رسالة جديدة، حدّث معاينة آخر رسالة على المحادثة تلقائياً.
+create or replace function public.handle_new_message()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  update public.conversations
+    set last_message = new.text,
+        last_message_at = new.created_at
+    where id = new.conversation_id;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_new_message on public.messages;
+create trigger on_new_message
+  after insert on public.messages
+  for each row execute procedure public.handle_new_message();
